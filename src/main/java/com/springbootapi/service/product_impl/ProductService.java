@@ -1,7 +1,7 @@
 package com.springbootapi.service.product_impl;
 
 
-import com.springbootapi.dto.PageResponse;
+import com.springbootapi.dto.response.PageResponse;
 import com.springbootapi.model.Product;
 import com.springbootapi.repository.IProductRepository;
 import jakarta.persistence.EntityNotFoundException;

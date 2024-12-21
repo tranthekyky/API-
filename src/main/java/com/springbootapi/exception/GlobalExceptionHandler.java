@@ -1,7 +1,7 @@
 package com.springbootapi.exception;
 
 
-import com.springbootapi.dto.ErrorResponse;
+import com.springbootapi.dto.response.ErrorResponse;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;

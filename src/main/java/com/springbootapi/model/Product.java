@@ -15,7 +15,7 @@ import lombok.*;
 public class Product {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    private Integer id;
     @NotBlank(message = "Name cannot be empty and must contain at least one non-whitespace character")
     private String name;
     @NotNull(message = "Price cannot be empty and must contain at least one non-whitespace character")

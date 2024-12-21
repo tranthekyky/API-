@@ -1,8 +1,8 @@
 package com.springbootapi.controller;
 
 
-import com.springbootapi.dto.DataResponse;
-import com.springbootapi.dto.PageResponse;
+import com.springbootapi.dto.response.DataResponse;
+import com.springbootapi.dto.response.PageResponse;
 import com.springbootapi.model.Product;
 import com.springbootapi.service.product_impl.ProductService;
 import jakarta.validation.Valid;

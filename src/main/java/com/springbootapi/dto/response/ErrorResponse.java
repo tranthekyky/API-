@@ -1,4 +1,4 @@
-package com.springbootapi.dto;
+package com.springbootapi.dto.response;
 
 import lombok.*;
 

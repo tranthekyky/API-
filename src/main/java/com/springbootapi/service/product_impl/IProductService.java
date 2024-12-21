@@ -1,9 +1,8 @@
 package com.springbootapi.service.product_impl;
 
-import com.springbootapi.dto.PageResponse;
+import com.springbootapi.dto.response.PageResponse;
 import com.springbootapi.model.Product;
 import com.springbootapi.service.IGenerateService;
-import org.springframework.data.domain.Sort;
 
 
 public interface IProductService extends IGenerateService<Product> {

@@ -1,7 +1,7 @@
 package com.springbootapi.controller;
 
 
-import com.springbootapi.dto.DataResponse;
+import com.springbootapi.dto.response.DataResponse;
 import com.springbootapi.service.category_impl.CategoryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
