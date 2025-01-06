@@ -1,14 +1,15 @@
 package com.springbootapi.service.user_impl;
 
 import com.springbootapi.enums.RoleEnum;
+import com.springbootapi.model.Role;
 import com.springbootapi.model.User;
+import com.springbootapi.repository.IRoleRepository;
 import com.springbootapi.repository.IUserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -21,8 +22,10 @@ import java.util.List;
 public class UserService implements IUserService {
     private  final IUserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final IRoleRepository iRoleRepository;
 
-    @PreAuthorize("hasRole('ADMIN')")
+//    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('CREATE_POST')")
     @Override
     public List<User> findAll() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -42,7 +45,11 @@ public class UserService implements IUserService {
     @Override
     public User save(User user) {
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-        user.setRoles(RoleEnum.USER.name());
+        HashSet<Role> roles = new HashSet<>();
+        Role role = iRoleRepository.findById(RoleEnum.USER.name())
+                .orElseThrow(() -> new RuntimeException("Role not found"));
+        roles.add(role);
+        user.setRoles(roles);
         return userRepository.save(user);
     }
 

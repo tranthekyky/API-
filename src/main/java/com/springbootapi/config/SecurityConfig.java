@@ -1,36 +1,28 @@
 package com.springbootapi.config;
 
 
-import com.springbootapi.enums.RoleEnum;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
-
-import javax.crypto.spec.SecretKeySpec;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    @Value("${signer-key}")
-    private String SIGNER_KEY;
+    @Autowired
+    private CustomJwtDecoder jwtDecoder;
 
-        private final String [] PUBLIC_URLS = {"/users" , "/auth/getToken" , "/auth/introspect-token"} ;
+        private final String [] PUBLIC_URLS = {"/users" , "/auth/getToken" ,
+                "/auth/introspect-token" ,"/auth/logout" } ;
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.authorizeHttpRequests(request -> {
@@ -42,7 +34,7 @@ public class SecurityConfig {
         });
 
         http.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwtConfigurer ->
-            jwtConfigurer.decoder(jwtDecoder())
+            jwtConfigurer.decoder(jwtDecoder)
                     .jwtAuthenticationConverter(jwtAuthenticationConverter()))
                 .authenticationEntryPoint(new JwtAuthenticationEntryPoint())
 //                        .accessDeniedHandler(new CustomAccessDeniedHandler())
@@ -52,19 +44,7 @@ public class SecurityConfig {
 
         return http.build();
     }
-    @Bean
-    public JwtDecoder jwtDecoder() {
-        SecretKeySpec secretKeySpec = new SecretKeySpec(SIGNER_KEY.getBytes() , "HS512") ;
-       return NimbusJwtDecoder
-               .withSecretKey(secretKeySpec)
-               .macAlgorithm(MacAlgorithm.HS512)
-               .build() ;
-    }
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(10) ;
-    }
 
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter() {

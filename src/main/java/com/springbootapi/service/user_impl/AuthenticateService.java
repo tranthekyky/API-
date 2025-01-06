@@ -7,10 +7,13 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import com.springbootapi.dto.request.AuthenticateRequest;
 import com.springbootapi.dto.request.IntrospectRequest;
+import com.springbootapi.dto.request.LogoutRequest;
 import com.springbootapi.dto.response.AuthenticateResponse;
 import com.springbootapi.dto.response.IntrospectResponse;
+import com.springbootapi.model.InvalidatedToken;
 import com.springbootapi.model.User;
 import com.springbootapi.repository.IUserRepository;
+import com.springbootapi.repository.InvalidatedRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -20,6 +23,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 import java.sql.Time;
 import java.text.ParseException;
@@ -27,6 +31,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.StringJoiner;
+import java.util.UUID;
 
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE,makeFinal = true)
@@ -34,12 +39,14 @@ import java.util.StringJoiner;
 @Slf4j
 public class AuthenticateService {
 
+
     @NonFinal
     @Value("${signer-key}")
     String SIGNER_KEY;
 
     IUserRepository userRepository;
     PasswordEncoder passwordEncoder;
+    InvalidatedRepository invalidatedRepository;
 
     public AuthenticateResponse authenticate (AuthenticateRequest request) {
         User user = userRepository.findByUsername(request.getUsername());
@@ -60,6 +67,19 @@ public class AuthenticateService {
         }
     }
 
+    public void logout (LogoutRequest request) throws ParseException, JOSEException {
+        var jwtClaimSet = verifyToken(request.getToken()).getJWTClaimsSet() ;
+        String jit = jwtClaimSet.getJWTID() ;
+        Date expiration = jwtClaimSet.getExpirationTime();
+
+        InvalidatedToken invalidatedToken = InvalidatedToken.builder()
+                .id(jit)
+                .expiryTime(expiration)
+                .build();
+
+        invalidatedRepository.save(invalidatedToken);
+    }
+
     public String generateToken(User user) {
         // Để generate một token phải cần 1 header - payload - signerKey
         JWSHeader jweHeader = new JWSHeader(JWSAlgorithm.HS512);
@@ -71,6 +91,7 @@ public class AuthenticateService {
                 .expirationTime(new Date(
                         Instant.now().plus(1 , ChronoUnit.HOURS).toEpochMilli()
                 ))
+                .jwtID(UUID.randomUUID().toString())
                 .claim("scope" , buildScope(user))
                 .build();
 
@@ -85,33 +106,51 @@ public class AuthenticateService {
             throw new RuntimeException(e);
         }
     }
+    private SignedJWT verifyToken (String token) throws JOSEException, ParseException {
+        JWSVerifier verifier = new MACVerifier(SIGNER_KEY.getBytes());
+        // Tạo một đối tượng xác minh token với agr HMAC (Hash based message authentication code) và code key của server
+        SignedJWT signedJWT = SignedJWT.parse(token) ;
+        //Phân tích token thành một signedKey ( có Đầy đủ cấu trúc của một token)
+        Date expirationDate = signedJWT.getJWTClaimsSet().getExpirationTime();
+        // getJWTClaimsSet lấy tập hợp các thông tinh từ payload , getExpirationTime lấy thời điểm hết hạn
+        var verified = signedJWT.verify(verifier);
+
+        if ( !verified && expirationDate.after(new Date())) {
+            throw new JOSEException("Expired JWT token");
+        }
+        if (invalidatedRepository.existsById(signedJWT.getJWTClaimsSet().getJWTID()))
+            throw new EntityNotFoundException ("JWT ID already exists ");
+        return signedJWT;
+    }
 
     public IntrospectResponse introspectToken(IntrospectRequest request) {
         var token = request.getToken();
         //Lấy về token đầu vào
+        var isValid = true ;
         try {
-            JWSVerifier verifier = new MACVerifier(SIGNER_KEY.getBytes());
-            // Tạo một đối tượng xác minh token với agr HMAC (Hash based message authentication code) và code key của server
-            SignedJWT signedJWT = SignedJWT.parse(token) ;
-            //Phân tích token thành một signedKey ( có Đầy đủ cấu trúc của một token)
-            Date expirationDate = signedJWT.getJWTClaimsSet().getExpirationTime();
-            // getJWTClaimsSet lấy tập hợp các thông tinh từ payload , getExpirationTime lấy thời điểm hết hạn
-            var verified = signedJWT.verify(verifier);
-            //Kiểm tra tính hợp lệ của key so với SIGNER_KEY .
-            return IntrospectResponse.builder()
-                    .isValid(verified && expirationDate.after(new Date()))
-                    .build();
-
+            verifyToken(token);
         } catch (JOSEException  | ParseException e) {
             log.error("JWT verification failed " , e);
-            throw new RuntimeException("JWT verification failed !", e);
+            isValid = false ;
+//            throw new RuntimeException("JWT verification failed !", e);
         }
+        return IntrospectResponse.builder()
+                .isValid(isValid)
+                .build();
     }
 
     public String buildScope (User user) {
         StringJoiner scopes = new StringJoiner(" ");
-        if (user.getRoles() != null && !user.getRoles().isEmpty()) {
-            scopes.add(user.getRoles()) ;
+
+        if (!CollectionUtils.isEmpty(user.getRoles())) {
+            user.getRoles().forEach(role -> {
+                scopes.add("ROLE_" + role.getName());
+                if (!CollectionUtils.isEmpty(role.getPermissions())) {
+                    role.getPermissions().forEach(permission -> {
+                        scopes.add(permission.getName());
+                    });
+                }
+            });
         }
 
         return scopes.toString();

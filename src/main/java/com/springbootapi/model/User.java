@@ -26,7 +26,8 @@ public class User {
     String lastName;
     @JsonFormat(shape = JsonFormat.Shape.STRING , pattern = "dd-MM-yyyy")
     LocalDate birthDate;
-    String roles;
+    @ManyToMany
+    Set<Role> roles;
 
 
 }
